@@ -1,0 +1,96 @@
+export interface GoldPriceItem {
+  brand: string
+  brand_name: string
+  gold_price: number
+  bar_price?: number | null
+  update_time?: string | null
+}
+
+export interface DomesticGoldPrice {
+  price: number
+  update_time?: string | null
+}
+
+export interface GoldPriceOverview {
+  domestic: DomesticGoldPrice
+  brands: GoldPriceItem[]
+}
+
+export interface ExchangeRule {
+  id?: number
+  name: string
+  brand: string
+  support_bar: boolean
+  support_other_brand: boolean
+  support_old_jewelry: boolean
+  need_extra_gold: boolean
+  extra_rate: number
+  loss_type: 'fixed' | 'percentage'
+  loss_value: number
+  labor_type: 'fixed' | 'perGram'
+  labor_value: number
+  recycle_price_type: 'recycle' | 'jewelry'
+  created_at?: string
+  updated_at?: string
+}
+
+export type ExchangeRuleInput = Omit<ExchangeRule, 'id' | 'created_at' | 'updated_at'>
+
+export interface PurchaseInfo {
+  brand: string
+  new_weight: number
+  new_price: number
+  labor_fee?: number | null
+  old_weight: number
+  old_brand?: string | null
+  old_is_bar: boolean
+  recycle_price?: number | null
+}
+
+export interface ExchangeRuleInline {
+  support_bar: boolean
+  support_other_brand: boolean
+  support_old_jewelry: boolean
+  need_extra_gold: boolean
+  extra_rate: number
+  loss_type: 'fixed' | 'percentage'
+  loss_value: number
+  labor_type: 'fixed' | 'perGram'
+  labor_value: number
+  recycle_price_type: 'recycle' | 'jewelry'
+}
+
+export interface CostBreakdownItem {
+  label: string
+  value: number
+  detail?: string | null
+}
+
+export interface CostCalculationResult {
+  brand: string
+  new_gold_total: number
+  labor_fee: number
+  old_weight: number
+  loss_amount: number
+  exchangeable_weight: number
+  recycle_price: number
+  old_gold_deduction: number
+  final_cost: number
+  price_per_gram: number
+  min_new_weight?: number | null
+  breakdown: CostBreakdownItem[]
+  warnings: string[]
+}
+
+export interface CostCalculationRequest {
+  purchase: PurchaseInfo
+  rule_id?: number | null
+  exchange_rule?: ExchangeRuleInline | null
+}
+
+export const BRAND_LABELS: Record<string, string> = {
+  chow_tai_fook: '周大福',
+  chow_sang_sang: '周生生',
+  lao_feng_xiang: '老凤祥',
+  china_gold: '中国黄金',
+}

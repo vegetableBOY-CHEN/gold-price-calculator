@@ -1,0 +1,60 @@
+---
+description: Gold Price Calculator project conventions and architecture
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Gold Price Calculator
+
+多品牌黄金首饰价格计算工具。
+
+## 架构
+
+- **frontend/**: Vue 3 + Vite + TypeScript + Pinia
+- **backend/**: FastAPI + Pydantic，无数据库（v0.1）
+- **rules/brands/**: 品牌定价规则 JSON，是核心数据源
+
+## 开发约定
+
+### 后端
+
+- API 路由放在 `app/api/`，业务逻辑放在 `app/services/`
+- 价格计算逻辑只在 `app/calculator/engine.py` 中实现
+- 数据模型使用 Pydantic v2，定义在 `app/models/`
+- 新增品牌：在 `rules/brands/` 添加 JSON，无需改代码
+
+### 前端
+
+- 组件用 `<script setup lang="ts">`
+- API 请求统一走 `src/api/`
+- 类型定义在 `src/types/`，与后端 Pydantic 模型保持一致
+- 状态管理用 Pinia store（`src/stores/`）
+
+### 规则 JSON
+
+- 文件名 = `id` 字段（如 `chow_tai_fook.json`）
+- 费用类型：`fixed` | `per_gram` | `percentage`
+- 详见 `docs/RULES.md`
+
+## 常用命令
+
+```bash
+# 后端
+cd backend && uvicorn app.main:app --reload
+
+# 前端
+cd frontend && npm run dev
+
+# 测试
+pytest
+
+# 校验规则
+python scripts/validate_rules.py
+```
+
+## 文档
+
+- PRD: `docs/PRD.md`
+- API: `docs/API.md`
+- 路线图: `docs/ROADMAP.md`

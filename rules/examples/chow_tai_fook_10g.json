@@ -1,0 +1,15 @@
+{
+  "description": "周大福 10克足金手镯计算示例",
+  "request": {
+    "brand_id": "chow_tai_fook",
+    "weight": 10,
+    "gold_price": 580,
+    "purity": 0.999,
+    "extra_fees": 0
+  },
+  "expected": {
+    "gold_value": 5794.2,
+    "total_price": 6294.2,
+    "notes": "gold_value = 10 * 0.999 * 580 = 5794.2; labor = 10 * 50 = 500"
+  }
+}

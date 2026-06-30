@@ -1,0 +1,19 @@
+{
+  "id": "chow_sang_sang",
+  "name": "周生生",
+  "name_en": "Chow Sang Sang",
+  "description": "周生生黄金首饰定价规则（示例配置，需根据实际门店政策更新）",
+  "gold_price_source": "manual",
+  "labor_fee": {
+    "type": "per_gram",
+    "value": 45,
+    "description": "按克计工费"
+  },
+  "craft_fee": {
+    "type": "fixed",
+    "value": 0,
+    "description": "部分款式含工艺费"
+  },
+  "other_fees": [],
+  "notes": "工费因款式不同可能有差异，此为基础参考值"
+}

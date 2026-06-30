@@ -1,0 +1,15 @@
+{
+  "id": "chow_tai_fook",
+  "name": "周大福",
+  "name_en": "Chow Tai Fook",
+  "description": "周大福黄金首饰定价规则（示例配置，需根据实际门店政策更新）",
+  "gold_price_source": "manual",
+  "labor_fee": {
+    "type": "per_gram",
+    "value": 50,
+    "description": "按克计工费"
+  },
+  "craft_fee": null,
+  "other_fees": [],
+  "notes": "工费因款式不同可能有差异，此为基础参考值"
+}
