@@ -52,15 +52,17 @@ docker-compose up -d
 ### 本地开发
 
 # 后端
+```bash
 cd gold-price-calculator\backend
 .\venv\Scripts\activate
 uvicorn app.main:app --reload
-
+```
 # 前端
+```bash
 cd gold-price-calculator\frontend
 npm install
 npm run dev
-这能用windows运行吗
+```
 
 
 #### 后端
