@@ -37,8 +37,11 @@ def test_new_gold_only(calculator, default_rule):
     assert result.new_gold_total == 9800
     assert result.labor_fee == 300
     assert result.old_gold_deduction == 0
+    assert result.direct_purchase_cost == 10100
+    assert result.actual_cost == 10100
+    assert result.savings_amount == 0
     assert result.final_cost == 10100
-    assert result.price_per_gram == 1010
+    assert result.price_per_gram == 980
 
 
 def test_exchange_with_old_gold(calculator, default_rule):
@@ -47,6 +50,7 @@ def test_exchange_with_old_gold(calculator, default_rule):
         new_weight=10,
         new_price=980,
         old_weight=8,
+        old_purchase_cost=6000,
         old_is_bar=False,
         recycle_price=850,
     )
@@ -55,8 +59,11 @@ def test_exchange_with_old_gold(calculator, default_rule):
     assert result.loss_amount == 0.2
     assert result.exchangeable_weight == 7.8
     assert result.old_gold_deduction == 6630
+    assert result.direct_purchase_cost == 10100
     assert result.final_cost == 3470
-    assert result.price_per_gram == 347
+    assert result.actual_cost == 9470
+    assert result.savings_amount == 630
+    assert result.price_per_gram == 917
 
 
 def test_extra_gold_warning(calculator, default_rule):

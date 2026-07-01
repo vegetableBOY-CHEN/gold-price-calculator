@@ -7,6 +7,7 @@ class PurchaseInfo(BaseModel):
     new_price: float = Field(..., gt=0, description="金价(元/g)")
     labor_fee: float | None = Field(default=None, ge=0, description="工费，留空则按规则计算")
     old_weight: float = Field(default=0, ge=0, description="旧金重量(g)")
+    old_purchase_cost: float = Field(default=0, ge=0, description="旧金购买成本")
     old_brand: str | None = Field(default=None, description="旧金品牌")
     old_is_bar: bool = Field(default=False, description="是否金条")
     recycle_price: float | None = Field(default=None, ge=0, description="回收价，留空则自动推算")
@@ -46,6 +47,9 @@ class CostCalculationResult(BaseModel):
     exchangeable_weight: float
     recycle_price: float
     old_gold_deduction: float
+    direct_purchase_cost: float
+    actual_cost: float
+    savings_amount: float
     final_cost: float
     price_per_gram: float
     min_new_weight: float | None = None

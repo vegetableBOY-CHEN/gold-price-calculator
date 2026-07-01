@@ -14,6 +14,7 @@ const newWeight = ref<number | null>(10)
 const newPrice = ref<number | null>(null)
 const laborFee = ref<number | null>(null)
 const oldWeight = ref<number | null>(0)
+const oldPurchaseCost = ref<number | null>(0)
 const oldBrand = ref('')
 const oldIsBar = ref(false)
 const recyclePrice = ref<number | null>(null)
@@ -78,7 +79,14 @@ function formatValue(item: { label: string; value: number }) {
   if (['旧金重量', '可抵扣重量'].includes(item.label)) return `${item.value}g`
   if (item.label === '损耗') return `${item.value}g`
   if (item.label === '旧金抵扣') return `- ${fmt(Math.abs(item.value))}`
+  if (item.label === '置换节省') return formatSavings(item.value)
   return fmt(item.value)
+}
+
+function formatSavings(n: number) {
+  if (n > 0) return `省 ${fmt(n)}`
+  if (n < 0) return `多花 ${fmt(Math.abs(n))}`
+  return '持平'
 }
 
 async function submit() {
@@ -97,6 +105,7 @@ async function submit() {
         new_price: newPrice.value,
         labor_fee: laborFee.value,
         old_weight: oldWeight.value ?? 0,
+        old_purchase_cost: oldPurchaseCost.value ?? 0,
         old_brand: oldBrand.value || null,
         old_is_bar: oldIsBar.value,
         recycle_price: recyclePrice.value,
@@ -150,6 +159,13 @@ async function submit() {
             <label>旧金重量 (g)</label>
             <input v-model.number="oldWeight" type="number" step="0.01" min="0" />
           </div>
+          <div class="form-group">
+            <label>旧金购买成本 (元)</label>
+            <input v-model.number="oldPurchaseCost" type="number" step="0.01" min="0" />
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 1rem">
           <div class="form-group">
             <label>旧金品牌</label>
             <input v-model="oldBrand" type="text" placeholder="可选" />
@@ -238,9 +254,27 @@ async function submit() {
 
         <template v-if="result">
           <div class="highlight">
-            <p class="text-muted">最终花费</p>
+            <p class="text-muted">需补差价</p>
             <p class="final-cost">{{ fmt(result.final_cost) }}</p>
-            <p class="per-gram">克均价 <strong>{{ fmt(result.price_per_gram) }}/g</strong></p>
+            <p class="per-gram">
+              真实克均价 <strong>{{ fmt(result.price_per_gram) }}/g</strong>
+              <small>* 不含工费</small>
+            </p>
+          </div>
+
+          <div class="result-summary">
+            <div>
+              <span>真实成本</span>
+              <strong>{{ fmt(result.actual_cost) }}</strong>
+            </div>
+            <div>
+              <span>直接购买</span>
+              <strong>{{ fmt(result.direct_purchase_cost) }}</strong>
+            </div>
+            <div :class="{ saved: result.savings_amount > 0, extra: result.savings_amount < 0 }">
+              <span>置换结果</span>
+              <strong>{{ formatSavings(result.savings_amount) }}</strong>
+            </div>
           </div>
 
           <ul class="breakdown">
@@ -327,6 +361,45 @@ async function submit() {
   color: var(--gold);
 }
 
+.per-gram small {
+  color: var(--text-muted);
+  margin-left: 0.35rem;
+}
+
+.result-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.result-summary > div {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.result-summary span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.result-summary strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.result-summary .saved strong {
+  color: #1f8f4d;
+}
+
+.result-summary .extra strong {
+  color: var(--danger);
+}
+
 .breakdown {
   list-style: none;
 }
@@ -364,6 +437,10 @@ async function submit() {
 
 @media (max-width: 768px) {
   .calc-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .result-summary {
     grid-template-columns: 1fr;
   }
 }

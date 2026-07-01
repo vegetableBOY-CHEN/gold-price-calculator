@@ -42,6 +42,7 @@ export interface PurchaseInfo {
   new_price: number
   labor_fee?: number | null
   old_weight: number
+  old_purchase_cost?: number | null
   old_brand?: string | null
   old_is_bar: boolean
   recycle_price?: number | null
@@ -75,6 +76,9 @@ export interface CostCalculationResult {
   exchangeable_weight: number
   recycle_price: number
   old_gold_deduction: number
+  direct_purchase_cost: number
+  actual_cost: number
+  savings_amount: number
   final_cost: number
   price_per_gram: number
   min_new_weight?: number | null

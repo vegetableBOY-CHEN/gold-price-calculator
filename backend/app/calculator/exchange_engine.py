@@ -46,8 +46,16 @@ class ExchangeCalculator:
 
         new_gold_total = round(purchase.new_weight * purchase.new_price, 2)
         labor_fee = self._calc_labor(purchase, rule)
+        direct_purchase_cost = round(new_gold_total + labor_fee, 2)
         final_cost = round(new_gold_total + labor_fee - old_deduction, 2)
-        price_per_gram = round(final_cost / purchase.new_weight, 2) if purchase.new_weight > 0 else 0.0
+        actual_cost = round(purchase.old_purchase_cost + final_cost, 2)
+        actual_gold_cost = round(actual_cost - labor_fee, 2)
+        savings_amount = round(direct_purchase_cost - actual_cost, 2)
+        price_per_gram = (
+            round(actual_gold_cost / purchase.new_weight, 2)
+            if purchase.new_weight > 0
+            else 0.0
+        )
 
         breakdown = [
             CostBreakdownItem(
@@ -64,6 +72,7 @@ class ExchangeCalculator:
                     value=purchase.old_weight,
                     detail=f"{'金条' if purchase.old_is_bar else '饰品'}",
                 ),
+                CostBreakdownItem(label="旧金成本", value=purchase.old_purchase_cost),
                 CostBreakdownItem(label="损耗", value=loss_amount, detail=self._loss_desc(rule)),
                 CostBreakdownItem(
                     label="可抵扣重量",
@@ -72,7 +81,12 @@ class ExchangeCalculator:
                 ),
                 CostBreakdownItem(label="旧金抵扣", value=-old_deduction),
             ])
-        breakdown.append(CostBreakdownItem(label="最终补差", value=final_cost))
+        breakdown.extend([
+            CostBreakdownItem(label="需补差价", value=final_cost),
+            CostBreakdownItem(label="真实成本", value=actual_cost),
+            CostBreakdownItem(label="直接购买新金价格", value=direct_purchase_cost),
+            CostBreakdownItem(label="置换节省", value=savings_amount),
+        ])
 
         return CostCalculationResult(
             brand=purchase.brand,
@@ -83,6 +97,9 @@ class ExchangeCalculator:
             exchangeable_weight=exchangeable_weight,
             recycle_price=recycle_price,
             old_gold_deduction=old_deduction,
+            direct_purchase_cost=direct_purchase_cost,
+            actual_cost=actual_cost,
+            savings_amount=savings_amount,
             final_cost=final_cost,
             price_per_gram=price_per_gram,
             min_new_weight=min_new_weight,
