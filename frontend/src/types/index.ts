@@ -11,9 +11,29 @@ export interface DomesticGoldPrice {
   update_time?: string | null
 }
 
+export interface MarketGoldPrice {
+  market: 'international' | 'domestic' | string
+  name: string
+  symbol: string
+  exchange?: string | null
+  price: number
+  currency: string
+  unit: string
+  change?: number | null
+  change_percent?: number | null
+  source: string
+  status: 'live' | 'fallback' | string
+  update_time?: string | null
+}
+
 export interface GoldPriceOverview {
   domestic: DomesticGoldPrice
+  international: MarketGoldPrice[]
+  domestic_markets: MarketGoldPrice[]
   brands: GoldPriceItem[]
+  brand_refresh_interval_seconds: number
+  market_refresh_interval_seconds: number
+  server_time?: string | null
 }
 
 export interface ExchangeRule {
@@ -97,4 +117,6 @@ export const BRAND_LABELS: Record<string, string> = {
   chow_sang_sang: '周生生',
   lao_feng_xiang: '老凤祥',
   china_gold: '中国黄金',
+  lao_miao: '老庙黄金',
+  lukfook: '六福珠宝',
 }

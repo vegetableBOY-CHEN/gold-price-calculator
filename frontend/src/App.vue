@@ -56,9 +56,19 @@ import { RouterLink, RouterView } from 'vue-router'
 
 .main {
   flex: 1;
-  max-width: 960px;
+  max-width: 1040px;
   width: 100%;
   margin: 0 auto;
   padding: 2rem 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .nav {
+    padding: 0 1rem;
+  }
+
+  .nav-links {
+    gap: 1rem;
+  }
 }
 </style>

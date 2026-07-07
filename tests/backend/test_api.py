@@ -23,6 +23,10 @@ async def test_get_prices(client):
     assert response.status_code == 200
     data = response.json()
     assert "domestic" in data
+    assert "international" in data
+    assert "domestic_markets" in data
+    assert data["brand_refresh_interval_seconds"] == 1800
+    assert data["market_refresh_interval_seconds"] == 5
     assert len(data["brands"]) >= 4
 
 

@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     rules_dir: str = str(PROJECT_ROOT / "rules")
     database_url: str = f"sqlite:///{PROJECT_ROOT / 'data' / 'gold.db'}"
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    alltick_token: str | None = None
+    alltick_base_url: str = "https://quote.alltick.io"
+    alltick_timeout_seconds: float = 4
+    alltick_international_symbols: str = "XAUUSD:OANDA:国际现货黄金:USD/oz"
+    alltick_domestic_symbols: str = "AU9999:SGE:上海金 AU9999:CNY/g"
 
 
 @lru_cache
