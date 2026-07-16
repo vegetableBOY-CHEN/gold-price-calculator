@@ -9,7 +9,7 @@ import type {
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  timeout: 10000,
+  timeout: 20000,
 })
 
 export async function fetchPrices(): Promise<GoldPriceOverview> {
