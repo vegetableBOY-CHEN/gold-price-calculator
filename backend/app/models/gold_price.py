@@ -36,7 +36,7 @@ class GoldPriceOverview(BaseModel):
     international: list[MarketGoldPrice] = []
     domestic_markets: list[MarketGoldPrice] = []
     brands: list[GoldPriceItem]
-    brand_refresh_interval_seconds: int = 1800
+    brand_refresh_interval_seconds: int = 28800
     market_refresh_interval_seconds: int = 5
     server_time: datetime | None = None
 

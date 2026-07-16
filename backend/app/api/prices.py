@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -9,8 +9,9 @@ router = APIRouter()
 
 
 @router.get("", response_model=GoldPriceOverview)
-async def get_prices(db: Session = Depends(get_db)):
+async def get_prices(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """获取国内金价及品牌金价列表"""
+    background_tasks.add_task(GoldPriceService.refresh_brand_prices_background)
     return GoldPriceService(db).get_overview()
 
 
