@@ -1,0 +1,36 @@
+#proto-editor-root, #proto-editor-root * { box-sizing: border-box; }
+#proto-editor-root { all: initial; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; font-family: Inter, "PingFang SC", system-ui, sans-serif; color: #eee; }
+#proto-editor-root .pe-toolbar, #proto-editor-root .pe-insert-menu, #proto-editor-root .pe-panel, #proto-editor-root .pe-toast { pointer-events: auto; }
+.pe-toolbar { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; max-width: calc(100vw - 24px); overflow-x: auto; padding: 6px; border: 1px solid #39393e; border-radius: 13px; background: rgba(24,24,27,.96); box-shadow: 0 12px 36px rgba(0,0,0,.3); backdrop-filter: blur(12px); scrollbar-width: none; }
+.pe-toolbar::-webkit-scrollbar { display: none; }
+.pe-logo { padding: 0 9px; color: #f5c84c; font-size: 13px; font-weight: 800; white-space: nowrap; }
+.pe-sep { width: 1px; height: 22px; margin: 0 3px; background: #3a3a40; }
+.pe-btn { all: unset; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 7px; border-radius: 8px; color: #bcbcc5; font: 12px/1 Inter, "PingFang SC", sans-serif; cursor: pointer; }
+.pe-btn:hover { color: #fff; background: #333338; }
+.pe-btn.active { color: #17140a; background: #f5c84c; }
+.pe-btn.danger:hover { color: #fff; background: #bb3b48; }
+.pe-insert-menu { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, 68px); gap: 5px; padding: 7px; border: 1px solid #39393e; border-radius: 12px; background: rgba(24,24,27,.98); box-shadow: 0 12px 36px rgba(0,0,0,.3); }
+.pe-insert-menu[hidden] { display: none; }
+.pe-insert-menu button { all: unset; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 5px; border-radius: 8px; color: #aaaab3; font: 11px/1 Inter, "PingFang SC", sans-serif; cursor: pointer; }
+.pe-insert-menu button:hover { color: #fff; background: #333338; }
+.pe-insert-menu b { color: #f5c84c; font-size: 17px; }
+.pe-outline { position: fixed; display: none; border: 2px solid #f5c84c; box-shadow: 0 0 0 1px rgba(0,0,0,.3); pointer-events: none; }
+.pe-label { position: absolute; left: -2px; bottom: 100%; padding: 3px 6px; border-radius: 5px 5px 0 0; color: #17140a; background: #f5c84c; font: 10px/1.2 monospace; white-space: nowrap; }
+.pe-resize-handle { position: absolute; right: -7px; bottom: -7px; width: 12px; height: 12px; border: 2px solid #17140a; border-radius: 3px; background: #f5c84c; box-shadow: 0 0 0 1px #f5c84c; pointer-events: auto; cursor: nwse-resize; }
+.pe-panel { position: fixed; top: 72px; right: 16px; width: 260px; max-height: calc(100vh - 90px); overflow: auto; padding: 15px; border: 1px solid #39393e; border-radius: 14px; background: rgba(24,24,27,.97); box-shadow: 0 16px 44px rgba(0,0,0,.35); }
+.pe-panel h3 { margin: 0 0 4px; color: #fff; font-size: 13px; }
+.pe-selector { overflow: hidden; margin-bottom: 13px; color: #898994; font: 10px/1.4 monospace; text-overflow: ellipsis; white-space: nowrap; }
+.pe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.pe-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pe-field.wide { grid-column: 1 / -1; }
+.pe-field label { color: #92929c; font-size: 10px; }
+.pe-field input, .pe-field select, .pe-field textarea { width: 100%; min-width: 0; border: 1px solid #3a3a40; border-radius: 7px; padding: 7px 8px; outline: none; color: #eee; background: #242429; font: 11px/1.3 inherit; }
+.pe-field input:focus, .pe-field textarea:focus { border-color: #f5c84c; }
+.pe-field input[type=color] { height: 32px; padding: 3px; }
+.pe-field textarea { min-height: 58px; resize: vertical; }
+.pe-hint { margin: 12px 0 0; color: #777781; font-size: 10px; line-height: 1.5; }
+.pe-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 9px 13px; border-radius: 9px; color: #eee; background: #242429; box-shadow: 0 8px 24px rgba(0,0,0,.3); font-size: 11px; animation: pe-in .18s ease-out; }
+.pe-editing { outline: 2px dashed #f5c84c !important; outline-offset: 2px !important; cursor: text !important; }
+.pe-hidden { opacity: .16 !important; filter: grayscale(1) !important; }
+body.pe-selecting, body.pe-selecting * { cursor: crosshair !important; }
+@keyframes pe-in { from { opacity: 0; transform: translate(-50%, 6px); } }

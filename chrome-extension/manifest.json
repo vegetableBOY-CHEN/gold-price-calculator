@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "原型画布 - 网页可视化编辑器",
+  "version": "0.3.0",
+  "description": "直接选择并编辑网页元素，快速制作前端原型。",
+  "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage", "downloads"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "打开原型画布",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["editor.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-editor": {
+      "suggested_key": {
+        "default": "Alt+Shift+E",
+        "mac": "Alt+Shift+E"
+      },
+      "description": "打开或关闭页面编辑器"
+    }
+  }
+}

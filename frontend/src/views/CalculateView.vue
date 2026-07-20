@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { fetchPrices, fetchRules, calculateCost } from '@/api'
-import type { CostCalculationResult, ExchangeRule, GoldPriceItem } from '@/types'
+import type { CostCalculationResult, ExchangeRule, ExchangeRuleInline, GoldPriceItem } from '@/types'
 
 const brands = ref<GoldPriceItem[]>([])
 const rules = ref<ExchangeRule[]>([])
@@ -21,17 +21,17 @@ const recyclePrice = ref<number | null>(null)
 const ruleId = ref<number | null>(null)
 const useCustomRule = ref(false)
 
-const customRule = ref({
+const customRule = ref<ExchangeRuleInline>({
   support_bar: true,
   support_other_brand: true,
   support_old_jewelry: true,
   need_extra_gold: false,
   extra_rate: 0,
-  loss_type: 'fixed' as const,
+  loss_type: 'fixed',
   loss_value: 0,
-  labor_type: 'perGram' as const,
+  labor_type: 'perGram',
   labor_value: 30,
-  recycle_price_type: 'recycle' as const,
+  recycle_price_type: 'recycle',
 })
 
 const brandRules = computed(() => rules.value.filter((r) => r.brand === brand.value))
