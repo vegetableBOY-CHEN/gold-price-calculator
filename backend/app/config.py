@@ -7,7 +7,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env")
+    # The project-level .env is shared with Docker Compose and the frontend,
+    # so it can contain variables (for example APP_PORT) that are irrelevant
+    # to the backend settings model.
+    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env", extra="ignore")
 
     app_name: str = "Gold Price Calculator"
     debug: bool = True
