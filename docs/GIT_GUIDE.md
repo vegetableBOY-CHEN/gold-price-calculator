@@ -428,3 +428,187 @@ git fetch --prune origin
 ```
 
 遇到不确定的情况时，最重要的不是尝试更多命令，而是先执行 `git status`，看清当前分支和 Git 正在进行的操作。
+
+## 十、让本地分支和 GitHub 保持一致
+
+“保持一致”通常有两种情况：
+
+1. **安全同步**：保留自己的本地提交，只拉取 GitHub 上的新提交。这是日常推荐方式。
+2. **以 GitHub 为准**：放弃本地改动和本地提交，让本地内容完全恢复成 GitHub 版本。只有确定本地内容不再需要时才使用。
+
+### 1. 日常安全同步（推荐）
+
+先确认当前是否存在未提交内容：
+
+```powershell
+git status
+```
+
+如果工作区干净，获取 GitHub 最新分支信息：
+
+```powershell
+git fetch --prune origin
+```
+
+其中：
+
+- `fetch` 只更新远端信息，不会修改当前文件。
+- `--prune` 会清理“GitHub 已删除，但本地还残留记录”的远端分支引用。
+
+然后逐个同步需要使用的分支：
+
+```powershell
+# 同步 main
+git switch main
+git pull --ff-only origin main
+
+# 同步某个功能分支，例如 new
+git switch new
+git pull --ff-only origin new
+```
+
+最后检查本地分支与远端分支的关联：
+
+```powershell
+git branch -vv
+```
+
+常见状态：
+
+| 显示 | 含义 |
+| --- | --- |
+| `[origin/main]` | 本地分支与远端分支一致 |
+| `[origin/main: ahead 1]` | 本地多一个提交，通常需要 `git push` |
+| `[origin/main: behind 1]` | GitHub 多一个提交，通常需要 `git pull --ff-only` |
+| `[origin/main: ahead 1, behind 1]` | 两边都有不同提交，需要合并或变基，不能直接快进 |
+| `[origin/分支名: gone]` | GitHub 上的对应分支已经删除 |
+
+### 2. GitHub 有分支，但本地没有
+
+先更新远端分支列表：
+
+```powershell
+git fetch --prune origin
+```
+
+查看全部本地和远端分支：
+
+```powershell
+git branch -a
+```
+
+创建对应的本地分支并建立跟踪关系：
+
+```powershell
+git switch --track origin/分支名
+```
+
+例如：
+
+```powershell
+git switch --track origin/feature/price-alert
+```
+
+### 3. GitHub 已删除分支，但本地仍然存在
+
+先清理远端分支记录：
+
+```powershell
+git fetch --prune origin
+git branch -vv
+```
+
+如果显示 `[origin/分支名: gone]`，并且确认该分支已经合并或不再需要，可以删除本地分支：
+
+```powershell
+git branch -d 分支名
+```
+
+如果 Git 提示分支尚未合并，先检查分支中的提交，不要立即使用 `-D` 强制删除：
+
+```powershell
+git log main..分支名 --oneline
+```
+
+### 4. 本地有新提交，需要同步到 GitHub
+
+先确认当前分支：
+
+```powershell
+git branch --show-current
+git status
+```
+
+然后推送：
+
+```powershell
+git push
+```
+
+如果是第一次推送这个分支，需要建立跟踪关系：
+
+```powershell
+git push -u origin 当前分支名
+```
+
+### 5. 完全以 GitHub 为准（会丢失本地内容）
+
+只有明确不需要当前分支的本地修改和本地提交时，才能使用下面的命令。
+
+先检查并尽量保存重要内容：
+
+```powershell
+git status
+git branch --show-current
+git log --oneline --decorate -10
+```
+
+如果只是临时保留本地内容，可以先创建 stash：
+
+```powershell
+git stash push -u -m "backup before syncing with GitHub"
+```
+
+然后以 GitHub 上的 `main` 为准覆盖本地 `main`：
+
+```powershell
+git fetch --prune origin
+git switch main
+git reset --hard origin/main
+git clean -fd
+```
+
+命令影响：
+
+- `git reset --hard origin/main`：丢弃已跟踪文件的本地修改，并丢弃只存在于本地 `main` 的提交。
+- `git clean -fd`：删除所有未被 Git 跟踪的文件和目录。
+
+如果要覆盖其他分支，把命令中的分支名一起替换。例如以 GitHub 上的 `new` 为准：
+
+```powershell
+git switch new
+git reset --hard origin/new
+git clean -fd
+```
+
+> 警告：不要在没有执行 `git status` 的情况下直接运行 `reset --hard` 或 `clean -fd`。如果只是正常更新代码，使用 `git pull --ff-only` 即可。
+
+### 6. 推荐的同步检查顺序
+
+不确定该使用哪种同步方式时，先执行下面这些只读命令：
+
+```powershell
+git status
+git branch -vv
+git fetch --prune origin
+git branch -vv
+git log --oneline --decorate --graph -10 --all
+```
+
+根据结果判断：
+
+- 显示 `behind`：使用 `git pull --ff-only`。
+- 显示 `ahead`：确认提交无误后使用 `git push`。
+- 同时显示 `ahead` 和 `behind`：先检查双方提交，再决定合并方式。
+- 显示 `gone`：确认分支已经合并后，使用 `git branch -d` 删除本地分支。
+- 存在未提交文件：先提交或 stash，再切换、拉取或覆盖分支。
