@@ -41,3 +41,12 @@ def test_db():
     yield
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def db_session():
+    session = TestSession()
+    try:
+        yield session
+    finally:
+        session.close()
