@@ -40,12 +40,14 @@ export interface ExchangeRule {
   id?: number
   name: string
   brand: string
+  store_name: string
+  city: string
   support_bar: boolean
   support_other_brand: boolean
   support_old_jewelry: boolean
   need_extra_gold: boolean
   extra_rate: number
-  loss_type: 'fixed' | 'percentage'
+  loss_type: 'percentage'
   loss_value: number
   labor_type: 'fixed' | 'perGram'
   labor_value: number
@@ -74,7 +76,7 @@ export interface ExchangeRuleInline {
   support_old_jewelry: boolean
   need_extra_gold: boolean
   extra_rate: number
-  loss_type: 'fixed' | 'percentage'
+  loss_type: 'percentage'
   loss_value: number
   labor_type: 'fixed' | 'perGram'
   labor_value: number

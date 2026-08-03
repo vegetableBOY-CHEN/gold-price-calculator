@@ -16,8 +16,8 @@ def default_rule():
         brand="chow_tai_fook",
         need_extra_gold=True,
         extra_rate=20,
-        loss_type="fixed",
-        loss_value=0.2,
+        loss_type="percentage",
+        loss_value=2.5,
         labor_type="perGram",
         labor_value=30,
         recycle_price_type="recycle",
@@ -66,7 +66,7 @@ def test_exchange_with_old_gold(calculator, default_rule):
     assert result.price_per_gram == 917
 
 
-def test_extra_gold_warning(calculator, default_rule):
+def test_extra_gold_requirement_blocks_calculation(calculator, default_rule):
     purchase = PurchaseInfo(
         brand="chow_tai_fook",
         new_weight=8,
@@ -75,10 +75,38 @@ def test_extra_gold_warning(calculator, default_rule):
         old_is_bar=False,
         recycle_price=850,
     )
+    with pytest.raises(ValueError, match="增金比例不足.*9.60g"):
+        calculator.calculate(purchase, default_rule)
+
+
+def test_extra_gold_requirement_allows_calculation_at_minimum(calculator, default_rule):
+    purchase = PurchaseInfo(
+        brand="chow_tai_fook",
+        new_weight=9.6,
+        new_price=980,
+        old_weight=8,
+        old_is_bar=False,
+        recycle_price=850,
+    )
     result = calculator.calculate(purchase, default_rule)
 
     assert result.min_new_weight == 9.6
-    assert any("增金" in w for w in result.warnings)
+
+
+def test_loss_is_percentage_of_each_gram(calculator, default_rule):
+    purchase = PurchaseInfo(
+        brand="chow_tai_fook",
+        new_weight=12,
+        new_price=980,
+        old_weight=10,
+        old_is_bar=False,
+        recycle_price=850,
+    )
+    result = calculator.calculate(purchase, default_rule)
+
+    assert result.loss_amount == 0.25
+    assert result.exchangeable_weight == 9.75
+    assert next(item.detail for item in result.breakdown if item.label == "损耗") == "每克损耗 2.5%"
 
 
 def test_unsupported_bar(calculator, default_rule):

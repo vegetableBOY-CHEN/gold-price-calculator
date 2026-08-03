@@ -1,16 +1,18 @@
 ﻿import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from html import unescape
 from datetime import datetime, timezone, timedelta
 from typing import Any
 import re
 import threading
+import time
 
 import httpx
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db.models import BrandPrice, DomesticPrice
+from app.db.models import BrandPrice, DomesticPrice, MarketPriceRecord
 from app.models.gold_price import (
     DomesticGoldPrice,
     GoldPriceItem,
@@ -407,6 +409,8 @@ class CnGoldBrandPriceClient:
 
 class GoldPriceService:
     _brand_refresh_lock = threading.Lock()
+    _market_refresh_lock = threading.Lock()
+    _last_market_refresh_attempt = 0.0
 
     def __init__(self, db: Session):
         self.db = db
@@ -429,26 +433,23 @@ class GoldPriceService:
         brands = self.db.query(BrandPrice).filter(BrandPrice.brand.in_(VISIBLE_BRANDS)).order_by(BrandPrice.id).all()
         international_symbols = self._parse_symbols(self.settings.alltick_international_symbols)
         domestic_symbols = self._parse_symbols(self.settings.alltick_domestic_symbols)
-        quotes = self.quote_client.latest_prices(international_symbols + domestic_symbols)
-        quotes.update(
-            {
-                symbol: quote
-                for symbol, quote in self.domestic_quote_client.latest_domestic_prices(domestic_symbols).items()
-                if symbol not in quotes
-            }
-        )
-        AllTickQuoteClient._last_quotes.update(quotes)
+        cached_market_prices = {
+            (record.market, record.symbol.upper()): record
+            for record in self.db.query(MarketPriceRecord).all()
+        }
 
         return GoldPriceOverview(
             domestic=DomesticGoldPrice(
                 price=domestic.price if domestic else 0,
                 update_time=domestic.updated_at if domestic else None,
             ),
-            international=self._market_prices("international", international_symbols, quotes, now),
+            international=self._market_prices(
+                "international", international_symbols, cached_market_prices, now
+            ),
             domestic_markets=self._market_prices(
                 "domestic",
                 domestic_symbols,
-                quotes,
+                cached_market_prices,
                 now,
                 fallback_price=domestic.price if domestic else 0,
                 fallback_time=domestic.updated_at if domestic else None,
@@ -469,6 +470,93 @@ class GoldPriceService:
         )
 
     @classmethod
+    def refresh_market_prices_background(cls):
+        if not cls._market_refresh_lock.acquire(blocking=False):
+            return
+
+        try:
+            current_attempt = time.monotonic()
+            if current_attempt - cls._last_market_refresh_attempt < 5:
+                return
+            cls._last_market_refresh_attempt = current_attempt
+
+            from app.db.database import SessionLocal
+
+            db = SessionLocal()
+            try:
+                cls(db).refresh_market_prices()
+            finally:
+                db.close()
+        finally:
+            cls._market_refresh_lock.release()
+
+    def refresh_market_prices(self):
+        international_symbols = self._parse_symbols(self.settings.alltick_international_symbols)
+        domestic_symbols = self._parse_symbols(self.settings.alltick_domestic_symbols)
+        all_symbols = international_symbols + domestic_symbols
+        quotes = self.quote_client.latest_prices(all_symbols)
+        quotes.update(
+            {
+                symbol: quote
+                for symbol, quote in self.domestic_quote_client.latest_domestic_prices(domestic_symbols).items()
+                if symbol not in quotes
+            }
+        )
+        if not quotes:
+            return
+
+        now = beijing_now().replace(tzinfo=None)
+        for market, symbols in (
+            ("international", international_symbols),
+            ("domestic", domestic_symbols),
+        ):
+            for item in symbols:
+                quote = quotes.get(item.symbol.upper())
+                if not quote:
+                    continue
+                record = (
+                    self.db.query(MarketPriceRecord)
+                    .filter_by(market=market, symbol=item.symbol)
+                    .first()
+                )
+                update_time = quote.get("update_time") or now
+                if isinstance(update_time, datetime) and update_time.tzinfo is not None:
+                    update_time = update_time.astimezone(BEIJING_TZ).replace(tzinfo=None)
+                values = {
+                    "name": item.name,
+                    "exchange": item.exchange or None,
+                    "price": float(quote["price"]),
+                    "currency": item.currency,
+                    "unit": item.unit,
+                    "change": quote.get("change"),
+                    "change_percent": quote.get("change_percent"),
+                    "source": quote.get("source", "local"),
+                    "updated_at": update_time,
+                }
+                if record:
+                    for key, value in values.items():
+                        setattr(record, key, value)
+                else:
+                    self.db.add(
+                        MarketPriceRecord(
+                            market=market,
+                            symbol=item.symbol,
+                            **values,
+                        )
+                    )
+
+                if market == "domestic" and item.symbol.upper() == "AU9999":
+                    domestic = self.db.query(DomesticPrice).first()
+                    if domestic:
+                        domestic.price = float(quote["price"])
+                        domestic.updated_at = update_time
+                    else:
+                        self.db.add(
+                            DomesticPrice(price=float(quote["price"]), updated_at=update_time)
+                        )
+        self.db.commit()
+
+    @classmethod
     def refresh_brand_prices_background(cls):
         if not cls._brand_refresh_lock.acquire(blocking=False):
             return
@@ -477,14 +565,14 @@ class GoldPriceService:
 
         db = SessionLocal()
         try:
-            cls(db).refresh_brand_prices(beijing_now().replace(tzinfo=None), max_clients=1)
+            # 一次刷新所有过期品牌，避免某个失败的来源长期挡住后续品牌。
+            cls(db).refresh_brand_prices(beijing_now().replace(tzinfo=None))
         finally:
             db.close()
             cls._brand_refresh_lock.release()
 
     def refresh_brand_prices(self, now: datetime, max_clients: int | None = None):
-        changed = False
-        checked_clients = 0
+        clients_to_refresh = []
         for client in self.brand_price_clients:
             record = self.db.query(BrandPrice).filter_by(brand=client.brand).first()
             if (
@@ -495,33 +583,43 @@ class GoldPriceService:
             ):
                 continue
 
-            if max_clients is not None and checked_clients >= max_clients:
+            if max_clients is not None and len(clients_to_refresh) >= max_clients:
                 break
-            checked_clients += 1
+            clients_to_refresh.append(client)
 
-            price = client.latest_price()
-            if not price:
-                continue
+        if not clients_to_refresh:
+            return
 
-            if record:
-                record.brand_name = price.brand_name
-                record.gold_price = price.gold_price
-                record.bar_price = price.bar_price
-                record.updated_at = price.update_time
-            else:
-                self.db.add(
-                    BrandPrice(
-                        brand=price.brand,
-                        brand_name=price.brand_name,
-                        gold_price=price.gold_price,
-                        bar_price=price.bar_price,
-                        updated_at=price.update_time,
+        # 品牌来源互不依赖，并行请求可让首页在下一轮轮询时拿到整批新价。
+        with ThreadPoolExecutor(max_workers=min(4, len(clients_to_refresh))) as executor:
+            futures = {executor.submit(client.latest_price): client for client in clients_to_refresh}
+            for future in as_completed(futures):
+                try:
+                    price = future.result()
+                except Exception:
+                    # 单个品牌源异常不应中断其他品牌的更新。
+                    continue
+                if not price:
+                    continue
+
+                record = self.db.query(BrandPrice).filter_by(brand=price.brand).first()
+                if record:
+                    record.brand_name = price.brand_name
+                    record.gold_price = price.gold_price
+                    record.bar_price = price.bar_price
+                    record.updated_at = price.update_time
+                else:
+                    self.db.add(
+                        BrandPrice(
+                            brand=price.brand,
+                            brand_name=price.brand_name,
+                            gold_price=price.gold_price,
+                            bar_price=price.bar_price,
+                            updated_at=price.update_time,
+                        )
                     )
-                )
-            changed = True
-
-        if changed:
-            self.db.commit()
+                # 逐个提交，已返回的品牌无需等待最慢的来源。
+                self.db.commit()
 
     def _is_default_brand_price(self, record: BrandPrice) -> bool:
         for brand_id, _, gold, bar in DEFAULT_BRANDS:
@@ -593,30 +691,31 @@ class GoldPriceService:
         self,
         market: str,
         symbols: list[MarketSymbol],
-        quotes: dict[str, dict[str, Any]],
+        cached_prices: dict[tuple[str, str], MarketPriceRecord],
         now: datetime,
         fallback_price: float = 0,
         fallback_time: datetime | None = None,
     ) -> list[dict[str, Any]]:
         prices = []
         for item in symbols:
-            quote = quotes.get(item.symbol.upper())
-            cached_quote = AllTickQuoteClient._last_quotes.get(item.symbol.upper())
-            effective_quote = quote or cached_quote
+            record = cached_prices.get((market, item.symbol.upper()))
+            age_seconds = None
+            if record and record.updated_at:
+                age_seconds = (now.replace(tzinfo=None) - record.updated_at).total_seconds()
             prices.append(
                 {
                     "market": market,
                     "name": item.name,
                     "symbol": item.symbol,
                     "exchange": item.exchange or None,
-                    "price": effective_quote["price"] if effective_quote else fallback_price,
+                    "price": record.price if record else fallback_price,
                     "currency": item.currency,
                     "unit": item.unit,
-                    "change": effective_quote.get("change") if effective_quote else None,
-                    "change_percent": effective_quote.get("change_percent") if effective_quote else None,
-                    "source": effective_quote.get("source", "AllTick") if effective_quote else "local",
-                    "status": "live" if quote else "cached" if cached_quote else "fallback",
-                    "update_time": now if quote else effective_quote.get("update_time") if effective_quote else fallback_time,
+                    "change": record.change if record else None,
+                    "change_percent": record.change_percent if record else None,
+                    "source": record.source if record else "local",
+                    "status": "live" if age_seconds is not None and age_seconds <= 30 else "cached" if record else "fallback",
+                    "update_time": record.updated_at if record else fallback_time,
                 }
             )
         return prices

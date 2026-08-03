@@ -8,16 +8,19 @@ const brands = ref<{ brand: string; brand_name: string }[]>([])
 const showForm = ref(false)
 const editingId = ref<number | null>(null)
 const saving = ref(false)
+const formError = ref('')
 
 const emptyForm = (): ExchangeRuleInput => ({
   name: '',
   brand: 'chow_tai_fook',
+  store_name: '',
+  city: '',
   support_bar: true,
   support_other_brand: true,
   support_old_jewelry: true,
   need_extra_gold: false,
   extra_rate: 0,
-  loss_type: 'fixed',
+  loss_type: 'percentage',
   loss_value: 0,
   labor_type: 'perGram',
   labor_value: 30,
@@ -41,6 +44,7 @@ function brandName(id: string) {
 function openCreate() {
   editingId.value = null
   form.value = emptyForm()
+  formError.value = ''
   showForm.value = true
 }
 
@@ -49,33 +53,50 @@ function openEdit(rule: ExchangeRule) {
   form.value = {
     name: rule.name,
     brand: rule.brand,
+    store_name: rule.store_name,
+    city: rule.city,
     support_bar: rule.support_bar,
     support_other_brand: rule.support_other_brand,
     support_old_jewelry: rule.support_old_jewelry,
     need_extra_gold: rule.need_extra_gold,
     extra_rate: rule.extra_rate,
-    loss_type: rule.loss_type,
+    loss_type: 'percentage',
     loss_value: rule.loss_value,
     labor_type: rule.labor_type,
     labor_value: rule.labor_value,
     recycle_price_type: rule.recycle_price_type,
   }
+  formError.value = ''
   showForm.value = true
 }
 
 function cancelForm() {
   showForm.value = false
   editingId.value = null
+  formError.value = ''
 }
 
 async function saveForm() {
-  if (!form.value.name.trim()) return
+  formError.value = ''
+  if (!form.value.name.trim()) {
+    formError.value = '请填写模板名称'
+    return
+  }
+  if (form.value.need_extra_gold && form.value.extra_rate <= 0) {
+    formError.value = '勾选“要求增金”后，请填写大于 0 的增金比例'
+    return
+  }
+  const payload: ExchangeRuleInput = {
+    ...form.value,
+    extra_rate: form.value.need_extra_gold ? form.value.extra_rate : 0,
+    loss_type: 'percentage',
+  }
   saving.value = true
   try {
     if (editingId.value) {
-      await updateRule(editingId.value, form.value)
+      await updateRule(editingId.value, payload)
     } else {
-      await createRule(form.value)
+      await createRule(payload)
     }
     await load()
     cancelForm()
@@ -93,8 +114,7 @@ async function remove(id: number) {
 function ruleSummary(r: ExchangeRule) {
   const parts: string[] = []
   if (r.need_extra_gold) parts.push(`增金${r.extra_rate}%`)
-  if (r.loss_type === 'fixed' && r.loss_value) parts.push(`损耗${r.loss_value}g`)
-  if (r.loss_type === 'percentage' && r.loss_value) parts.push(`损耗${r.loss_value}%`)
+  if (r.loss_value) parts.push(`每克损耗${r.loss_value}%`)
   parts.push(r.labor_type === 'perGram' ? `工费${r.labor_value}元/g` : `工费${r.labor_value}元`)
   return parts.join(' · ') || '无特殊规则'
 }
@@ -130,21 +150,25 @@ function ruleSummary(r: ExchangeRule) {
         <label><input v-model="form.need_extra_gold" type="checkbox" /> 要求增金</label>
       </div>
 
-      <div class="form-row form-row-3" style="margin-bottom: 1rem">
-        <div class="form-group">
+      <div class="form-row" style="margin-bottom: 1rem">
+        <div v-if="form.need_extra_gold" class="form-group">
           <label>增金比例 (%)</label>
-          <input v-model.number="form.extra_rate" type="number" min="0" />
+          <input v-model.number="form.extra_rate" type="number" min="0.01" step="0.01" />
         </div>
         <div class="form-group">
-          <label>损耗类型</label>
-          <select v-model="form.loss_type">
-            <option value="fixed">固定克数</option>
-            <option value="percentage">百分比</option>
-          </select>
+          <label>旧金损耗（每克 %）</label>
+          <input v-model.number="form.loss_value" type="number" min="0" max="100" step="0.01" />
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-bottom: 1rem">
+        <div class="form-group">
+          <label>城市</label>
+          <input v-model.trim="form.city" type="text" maxlength="100" placeholder="如：上海" />
         </div>
         <div class="form-group">
-          <label>损耗值</label>
-          <input v-model.number="form.loss_value" type="number" min="0" step="0.01" />
+          <label>门店或商场名称</label>
+          <input v-model.trim="form.store_name" type="text" maxlength="100" placeholder="如：南京东路店 / XX 商场" />
         </div>
       </div>
 
@@ -173,6 +197,7 @@ function ruleSummary(r: ExchangeRule) {
         <button class="btn" @click="cancelForm">取消</button>
         <button class="btn btn-primary" :disabled="saving" @click="saveForm">保存</button>
       </div>
+      <p v-if="formError" class="form-error">{{ formError }}</p>
     </div>
 
     <div class="rule-list">
@@ -181,6 +206,9 @@ function ruleSummary(r: ExchangeRule) {
           <div>
             <p class="rule-name">{{ rule.name }}</p>
             <p class="text-muted">{{ brandName(rule.brand) }}</p>
+            <p v-if="rule.city || rule.store_name" class="rule-location">
+              {{ [rule.city, rule.store_name].filter(Boolean).join(' · ') }}
+            </p>
           </div>
           <div class="rule-actions">
             <button class="btn btn-sm" @click="openEdit(rule)">编辑</button>
@@ -227,6 +255,13 @@ function ruleSummary(r: ExchangeRule) {
   justify-content: flex-end;
 }
 
+.form-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+  text-align: right;
+}
+
 .rule-list {
   display: flex;
   flex-direction: column;
@@ -258,6 +293,12 @@ function ruleSummary(r: ExchangeRule) {
   font-size: 0.85rem;
   margin: 0.5rem 0;
   color: var(--text-muted);
+}
+
+.rule-location {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
 }
 
 .rule-tags {

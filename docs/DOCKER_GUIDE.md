@@ -59,6 +59,8 @@ docker-compose.yml
        │                 │
        │                 ▼
        │          SQLite 数据卷
+       │          ├── 行情与品牌价格缓存
+       │          └── 门店规则模板
        │
        └── Vue 编译后的 HTML/CSS/JS
 ```
@@ -75,7 +77,16 @@ frontend/nginx.conf
 .env.example
 ```
 
-> 当前工作区位于 `new` 分支，该分支中的 Docker 文件可能仍是旧的开发配置。使用本文的生产部署命令前，应先确认当前分支和 Docker 配置是否正确。
+使用生产部署命令前，应先通过 `git branch --show-current` 和 `git status` 确认当前分支、未提交改动及 Docker 配置。
+
+### 2.1 行情请求与数据卷
+
+`GET /api/prices` 会先读取 SQLite 数据卷中的最近价格，再由后台任务刷新第三方行情。因此：
+
+- AllTick Token 缺失、过期或网络暂时不可用时，页面仍可显示数据库缓存和初始化兜底值。
+- 品牌来源按品牌独立刷新，单个来源失败不会删除其他品牌价格。
+- 删除 `gold_data` 卷会同时删除行情缓存和门店规则，不只是删除“临时数据”。
+- 容器重建后首次访问可能先显示缓存，后台刷新成功后的下一次请求才会看到新值。
 
 ## 3. Dockerfile 是什么
 
@@ -197,9 +208,11 @@ APP_PORT=8080
 ALLTICK_TOKEN=你的真实Token
 ALLTICK_BASE_URL=https://quote.alltick.co
 ALLTICK_TIMEOUT_SECONDS=12
-ALLTICK_INTERNATIONAL_SYMBOLS=实际国际品种配置
-ALLTICK_DOMESTIC_SYMBOLS=实际国内品种配置
+ALLTICK_INTERNATIONAL_SYMBOLS=GOLD::国际现货黄金:USD/oz
+ALLTICK_DOMESTIC_SYMBOLS=AU9999:SGE:上海金 AU9999:CNY/g
 ```
+
+品种格式为 `symbol:exchange:展示名称:币种/单位`。`ALLTICK_TOKEN` 可以留空；留空时国际实时行情可能不可用，但应用会继续使用数据库缓存和其他可用来源。
 
 重要规则：
 
@@ -787,9 +800,9 @@ docker push vegetableboy/gold-price-calculator-backend:v1.0.0
 - 不要公开 AllTick Token 或 Docker Hub Token。
 - 不要使用 `docker login -p 明文Token`。
 - 不要把 Token 写进 Dockerfile 或镜像。
+- 当前规则和金价写接口没有登录鉴权，不要在没有反向代理访问控制的情况下直接暴露后端 8000 端口。
 - 不要随意执行 `docker compose down -v`。
 - 不要随意执行 `docker system prune -a`。
 - 不要随意执行 `git reset --hard`。
 - 上传前检查前后端镜像的 IMAGE ID，防止标签打错。
 - 生产发布建议使用明确版本标签，不要只使用 `latest`。
-

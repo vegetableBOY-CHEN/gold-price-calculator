@@ -9,12 +9,14 @@ DEFAULT_RULES = [
     {
         "name": "周大福默认规则",
         "brand": "chow_tai_fook",
+        "store_name": "",
+        "city": "",
         "support_bar": True,
         "support_other_brand": True,
         "support_old_jewelry": True,
         "need_extra_gold": True,
         "extra_rate": 20,
-        "loss_type": "fixed",
+        "loss_type": "percentage",
         "loss_value": 0.2,
         "labor_type": "perGram",
         "labor_value": 30,
@@ -23,12 +25,14 @@ DEFAULT_RULES = [
     {
         "name": "周生生默认规则",
         "brand": "chow_sang_sang",
+        "store_name": "",
+        "city": "",
         "support_bar": False,
         "support_other_brand": True,
         "support_old_jewelry": True,
         "need_extra_gold": True,
         "extra_rate": 15,
-        "loss_type": "fixed",
+        "loss_type": "percentage",
         "loss_value": 0.15,
         "labor_type": "perGram",
         "labor_value": 28,
@@ -37,6 +41,8 @@ DEFAULT_RULES = [
     {
         "name": "老凤祥默认规则",
         "brand": "lao_feng_xiang",
+        "store_name": "",
+        "city": "",
         "support_bar": True,
         "support_other_brand": False,
         "support_old_jewelry": True,
@@ -60,12 +66,15 @@ class ExchangeRuleService:
             id=record.id,
             name=record.name,
             brand=record.brand,
+            store_name=record.store_name,
+            city=record.city,
             support_bar=record.support_bar,
             support_other_brand=record.support_other_brand,
             support_old_jewelry=record.support_old_jewelry,
             need_extra_gold=record.need_extra_gold,
             extra_rate=record.extra_rate,
-            loss_type=record.loss_type,
+            # 旧数据中的 fixed 只保留数据库兼容性；业务统一按每克百分比损耗。
+            loss_type="percentage",
             loss_value=record.loss_value,
             labor_type=record.labor_type,
             labor_value=record.labor_value,
@@ -112,7 +121,12 @@ class ExchangeRuleService:
         return True
 
     def seed_if_empty(self):
-        if self.db.query(ExchangeRuleRecord).count() > 0:
+        existing = self.db.query(ExchangeRuleRecord).all()
+        for record in existing:
+            record.loss_type = "percentage"
+
+        if existing:
+            self.db.commit()
             return
         now = datetime.utcnow()
         for item in DEFAULT_RULES:

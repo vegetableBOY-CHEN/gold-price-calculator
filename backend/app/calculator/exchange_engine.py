@@ -30,16 +30,21 @@ class ExchangeCalculator:
             if not rule.support_old_jewelry and not purchase.old_is_bar:
                 raise ValueError("该门店不支持旧饰品置换")
 
-        loss_amount = self._calc_loss(purchase.old_weight, rule.loss_type, rule.loss_value)
-        exchangeable_weight = max(0.0, round(purchase.old_weight - loss_amount, 4))
-
         min_new_weight: float | None = None
-        if purchase.old_weight > 0 and rule.need_extra_gold and rule.extra_rate > 0:
+        if purchase.old_weight > 0 and rule.need_extra_gold:
+            if rule.extra_rate <= 0:
+                raise ValueError("该规则要求增金，请填写大于 0 的增金比例")
             min_new_weight = round(purchase.old_weight * (1 + rule.extra_rate / 100), 4)
             if purchase.new_weight < min_new_weight:
-                warnings.append(
-                    f"增金要求：新金重量应不少于 {min_new_weight:.2f}g（当前 {purchase.new_weight}g）"
+                actual_rate = (purchase.new_weight - purchase.old_weight) / purchase.old_weight * 100
+                raise ValueError(
+                    f"增金比例不足：要求至少 {rule.extra_rate:.2f}%"
+                    f"（新金至少 {min_new_weight:.2f}g），"
+                    f"当前为 {actual_rate:.2f}%（{purchase.new_weight:.2f}g）"
                 )
+
+        loss_amount = self._calc_loss(purchase.old_weight, rule.loss_value)
+        exchangeable_weight = max(0.0, round(purchase.old_weight - loss_amount, 4))
 
         recycle_price = self._resolve_recycle_price(purchase, rule)
         old_deduction = round(exchangeable_weight * recycle_price, 2) if exchangeable_weight > 0 else 0.0
@@ -107,17 +112,13 @@ class ExchangeCalculator:
             warnings=warnings,
         )
 
-    def _calc_loss(self, old_weight: float, loss_type: str, loss_value: float) -> float:
+    def _calc_loss(self, old_weight: float, loss_value: float) -> float:
         if old_weight <= 0:
             return 0.0
-        if loss_type == "percentage":
-            return round(old_weight * loss_value / 100, 4)
-        return round(min(loss_value, old_weight), 4)
+        return round(old_weight * loss_value / 100, 4)
 
     def _loss_desc(self, rule: ExchangeRule | ExchangeRuleInline) -> str:
-        if rule.loss_type == "percentage":
-            return f"{rule.loss_value}%"
-        return f"{rule.loss_value}g"
+        return f"每克损耗 {rule.loss_value}%"
 
     def _resolve_recycle_price(
         self, purchase: PurchaseInfo, rule: ExchangeRule | ExchangeRuleInline
